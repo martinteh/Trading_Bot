@@ -11,6 +11,9 @@ payload_nonce =  str(int(time.mktime(t.timetuple())*1000))
 request_headers = {}
 close = 0
 
+
+
+
 def APILogin(payload):
 
     encoded_payload = json.dumps(payload).encode()
@@ -35,6 +38,7 @@ def getMarketPrice():
     global close
     close = btc_data[0][4]
     print("candle closed at {}".format(close))
+    return close
 
 
 def startBot():
@@ -60,18 +64,20 @@ def getBalances():
     for type in Balance:
         print("Currency is {}".format(type['currency']), "and the amount available is {}".format(type['availableForWithdrawal']))
     
+    return [type['availableForWithdrawal'][0], type['availableForWithdrawal'][0]]
 
 
 
 def placeSellOrder(close):
     endpoint = "/v1/order/new"
     url = base_url + endpoint
+    balances = getBalances()
     payload = {
         "request": "/v1/order/new",
         "nonce": payload_nonce,
         "symbol": "btcusd",
-        "amount": "0.01",
-        "price": close-1000,
+        "amount": str(0.1*balances[0]),
+        "price": close-100,
         "side": "sell",
         "type": "exchange limit",
         "options": ["immediate-or-cancel"] 
@@ -80,8 +86,8 @@ def placeSellOrder(close):
 
     response = requests.post(url, data=None, headers=request_headers)
     newOrder = response.json()
-    print(newOrder)
-    #print("A sell order of ${}".format(float(newOrder['executed_amount'])*float(newOrder['price'])), "has been completed.")
+    #print(newOrder)
+    print("A sell order of ${}".format(float(newOrder['executed_amount'])*float(newOrder['price'])), "has been completed.")
 
 def placeBuyOrder(close):
     endpoint = "/v1/order/new"
@@ -90,7 +96,7 @@ def placeBuyOrder(close):
         "request": "/v1/order/new",
         "nonce": payload_nonce,
         "symbol": "btcusd",
-        "amount": "0.01",
+        "amount": str(0.1*balances[1]),
         "price": close+1000,
         "side": "buy",
         "type": "exchange limit",
@@ -102,12 +108,42 @@ def placeBuyOrder(close):
     newOrder = response.json()
     print("A buy order of ${}".format(float(newOrder['executed_amount'])*float(newOrder['price'])), "has been completed.")
 
-#def attemptToMakeTrade():
+
+isNextOperationBuy = True
+UPWARD_TREND_THRESHOLD = 1.5
+DIP_THRESHOLD = -2.25
+PROFIT_THRESHOLD = 1.25
+STOP_LOSS_THRESHOLD = -2.00
+lastOpPrice = getMarketPrice()
+
+def tryToBuy(percentageDiff, currentPrice):
+    if percentageDiff >= UPWARD_TREND_THRESHOLD or percentageDiff <= DIP_THRESHOLD:
+        placeBuyOrder(currentPrice)
+        lastOpPrice = currentPrice
+        isNextOperationBuy = False
+
+def tryToSell(percentageDiff, currentPrice):
+    if percentageDiff >= PROFIT_THRESHOLD or percentageDiff <= STOP_LOSS_THRESHOLD:
+        placeSellOrder(currentPrice)
+        lastOpPrice = currentPrice
+        isNextOperationBuy = True
+
+
+def attemptToMakeTrade():
+    currentPrice = getMarketPrice()
+    percentageDiff = ((currentPrice - lastOpPrice)/lastOpPrice)*100
+    if isNextOperationBuy:
+        tryToBuy(percentageDiff, currentPrice)
+    else:
+        tryToSell(percentageDiff, currentPrice)
+
+
+
 
 
 #startBot()
-#getBalances()
-getMarketPrice()
-time.sleep(2)
+getBalances()
+#getMarketPrice()
+#time.sleep(2)
 #placeBuyOrder(close)
-placeSellOrder(close)
+#placeSellOrder(close)
