@@ -21,3 +21,6 @@ class LoginForm(FlaskForm):
         validators=[DataRequired()])
     remember = BooleanField('Remember Me')
     submit = SubmitField('Login')
+
+class BotDash(FlaskForm):
+    buy = SubmitField('Buy')
