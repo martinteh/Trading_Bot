@@ -2,27 +2,8 @@ import requests, json, datetime, time
 import base64
 import hmac
 import hashlib
-from flask import Flask, render_template, url_for, request, redirect
-from flask_sqlalchemy import SQLAlchemy
 
-app = Flask(__name__)
-#app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///bot.db'
-#db = SQLAlchemy(app)
-
-@app.route('/')
-def index():
-    return render_template('index.html')
-
-if __name__ == "__main__":
-    app.run(debug=True)
-
-
-
-
-
-
-
-
+from requests.api import get
 
 base_url = "https://api.sandbox.gemini.com"
 gemini_api_key = "account-c3Tq5mXw3TFSbkQyKbcr"
@@ -30,7 +11,15 @@ gemini_api_secret = "3pbp8qvvqRzmpsjgSPAuL95oMNYY".encode()
 t = datetime.datetime.now()
 payload_nonce =  str(int(time.mktime(t.timetuple())*1000))
 request_headers = {}
-close = 0
+#close = 0
+
+buyOrder = 0
+isNextOperationBuy = 1
+UPWARD_TREND_THRESHOLD = 1.5
+DIP_THRESHOLD = -2.25
+PROFIT_THRESHOLD = 1.25
+STOP_LOSS_THRESHOLD = -2.00
+lastOpPrice = 100.00
 
 
 def APILogin(payload):
@@ -54,20 +43,20 @@ def getMarketPrice():
     response = requests.get(base_url + "/v2/candles/btcusd/1m")
     btc_data = response.json()
     #print(btc_data)
-    global close
+    #global close
     close = btc_data[0][4]
-    #print("candle closed at {}".format(close))
-    return close
+    print("candle closed at {}".format(close))
+    return int(close)
 
 
 def startBot():
+
     while True:
         attemptToMakeTrade()
-        time.sleep(30)
+        time.sleep(60)
         
 
 def getBalance(Currency):
-
 
     endpoint = "/v1/balances"
     url = base_url + endpoint
@@ -91,6 +80,8 @@ def getBalance(Currency):
 
 
 def placeSellOrder(close):
+
+    global isNextOperationBuy
     endpoint = "/v1/order/new"
     url = base_url + endpoint
     payload = {
@@ -107,14 +98,16 @@ def placeSellOrder(close):
 
     response = requests.post(url, data=None, headers=request_headers)
     newOrder = response.json()
-    print(newOrder)
+    #print(newOrder)
     print("A sell order of ${}".format(float(newOrder['executed_amount'])*float(newOrder['price'])), "has been completed.")
 
     if float(newOrder['executed_amount']) > 0:
-        global isNextOperationBuy
-        isNextOperationBuy = False
+        isNextOperationBuy = 1
+        print(isNextOperationBuy)
 
 def placeBuyOrder(close):
+
+    global isNextOperationBuy
     endpoint = "/v1/order/new"
     url = base_url + endpoint
     payload = {
@@ -133,24 +126,22 @@ def placeBuyOrder(close):
     newOrder = response.json()
     #print(newOrder)
     print("A buy order of ${}".format(float(newOrder['executed_amount'])*float((newOrder['price']))), "has been completed.")
+    global buyOrder
+    buyOrder = str(float(newOrder['executed_amount'])*float((newOrder['price'])))
 
     if float(newOrder['executed_amount']) > 0:
-        global isNextOperationBuy
-        isNextOperationBuy = False
+        isNextOperationBuy = 0
+        print(isNextOperationBuy)
 
 
-isNextOperationBuy = True
-UPWARD_TREND_THRESHOLD = 1.5
-DIP_THRESHOLD = -2.25
-PROFIT_THRESHOLD = 1.25
-STOP_LOSS_THRESHOLD = -2.00
-lastOpPrice = 100.00
+
 
 def tryToBuy(percentageDiff):
+
     global lastOpPrice
     if percentageDiff >= UPWARD_TREND_THRESHOLD or percentageDiff <= DIP_THRESHOLD:
-        placeBuyOrder(close)
-        lastOpPrice = getMarketPrice()
+        placeBuyOrder(getMarketPrice())
+        #lastOpPrice = getMarketPrice()
         #getBalances()
     else:
         print("No buy order has been completed.")
@@ -158,22 +149,25 @@ def tryToBuy(percentageDiff):
     
 
 def tryToSell(percentageDiff):
+
     global lastOpPrice
     if percentageDiff >= PROFIT_THRESHOLD or percentageDiff <= STOP_LOSS_THRESHOLD:
-        placeSellOrder(close)
+        placeSellOrder(getMarketPrice())
         #time.sleep(2)
         #getBalances()
-        lastOpPrice = getMarketPrice()
+        #lastOpPrice = getMarketPrice()
     else:
         print("No sell order has been completed.")
         #lastOpPrice = getMarketPrice()
 
 
 def attemptToMakeTrade():
+
+    global isNextOperationBuy
     percentageDiff = ((getMarketPrice() - lastOpPrice)/lastOpPrice)*100
     print(percentageDiff)
     #time.sleep(2)
-    if isNextOperationBuy:
+    if isNextOperationBuy == 1:
         tryToBuy(percentageDiff)
         #time.sleep(2)
         #getBalances()
@@ -181,15 +175,25 @@ def attemptToMakeTrade():
         tryToSell(percentageDiff)
 
 
-
+def buyThenSell():
+    
+    
+    while True:
+        x = 1
+        if x == 1:
+            tryToBuy(500)
+            x = 0
+            time.sleep(10)
+        else:
+            tryToSell(500)
+            x = 1
+            time.sleep(10)
 
 
 #startBot()
+#attemptToMakeTrade()
+#tryToBuy(500)
+#tryToSell(500)
+#print(isNextOperationBuy)
 
-#time.sleep(2)
-#getMarketPrice()
-#time.sleep(2)
-#placeBuyOrder(close)
-#placeSellOrder(close)
-#getBalance("BTC")
-#getBalance("USD")
+#buyThenSell()
