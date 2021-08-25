@@ -2,6 +2,7 @@ import requests, json, datetime, time
 import base64
 import hmac
 import hashlib
+from threading import Event
 
 from requests.api import get
 
@@ -99,11 +100,12 @@ def placeSellOrder(close):
     response = requests.post(url, data=None, headers=request_headers)
     newOrder = response.json()
     #print(newOrder)
-    print("A sell order of ${}".format(float(newOrder['executed_amount'])*float(newOrder['price'])), "has been completed.")
+    #print("A sell order of ${}".format(float(newOrder['executed_amount'])*float(newOrder['price'])), "has been completed.")
+    return #float(newOrder['executed_amount'])*float(newOrder['price'])
 
-    if float(newOrder['executed_amount']) > 0:
-        isNextOperationBuy = 1
-        print(isNextOperationBuy)
+    #if float(newOrder['executed_amount']) > 0:
+       # isNextOperationBuy = 1
+        #print(isNextOperationBuy)
 
 def placeBuyOrder(close):
 
@@ -125,13 +127,14 @@ def placeBuyOrder(close):
     response = requests.post(url, data=None, headers=request_headers)
     newOrder = response.json()
     #print(newOrder)
-    print("A buy order of ${}".format(float(newOrder['executed_amount'])*float((newOrder['price']))), "has been completed.")
-    global buyOrder
-    buyOrder = str(float(newOrder['executed_amount'])*float((newOrder['price'])))
+    #print("A buy order of ${}".format(float(newOrder['executed_amount'])*float((newOrder['price']))), "has been completed.")
+    #global buyOrder
+    #buyOrder = str(float(newOrder['executed_amount'])*float((newOrder['price'])))
+    return #buyOrder
 
-    if float(newOrder['executed_amount']) > 0:
-        isNextOperationBuy = 0
-        print(isNextOperationBuy)
+    #if float(newOrder['executed_amount']) > 0:
+        #isNextOperationBuy = 0
+        #print(isNextOperationBuy)
 
 
 
@@ -176,18 +179,9 @@ def attemptToMakeTrade():
 
 
 def buyThenSell():
-    
-    
-    while True:
-        x = 1
-        if x == 1:
-            tryToBuy(500)
-            x = 0
-            time.sleep(10)
-        else:
-            tryToSell(500)
-            x = 1
-            time.sleep(10)
+    tryToSell(500)
+    Event().wait(10)
+    tryToSell(500)
 
 
 #startBot()

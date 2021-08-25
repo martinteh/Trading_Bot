@@ -2,8 +2,17 @@
 
 {% block body %}
 
+<div id="tvchart"></div>
+
 <div class="content-section">
-    <h1 style="text-align: center">Bot Tracker and Dashboard</h1> 
+  <script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
+
+    <h1 style="text-align: center">BTCUSD Bot Tracker and Dashboard</h1> 
+    
+    <a href="/startbot">Start Bot</a> <a href="/stopbot">Stop Bot</a>
+
+    <div id="chart"></div>
+
     {% if form|length < 1 %}
     <h4 style="text-align: center">You haven't bought any stocks recently.</h4>
     {% else %}
@@ -11,7 +20,7 @@
     <table class="table">
         <thead class="thead-dark">
           <tr>
-            <th scope="col">Amount Bought</th>
+            <th scope="col">Amount</th>
             <th scope="col">Stock Price</th>
             <th scope="col">Buy/Sell</th>
             <th scope="col">Time Bought</th>
@@ -35,11 +44,31 @@
   <form action="/botdashboard" method="POST">
     <input type="submit" value="Buy/Sell Testing Button">
   </form> 
-   
-  <a href="/delete">Delete</a>
 
+  <a href="/buy">Buy</a>
+  <a href="/sell">Sell</a>
+  <a href="/delete">Delete</a>
+ 
+
+  <table class="table">
+    <thead class="thead-dark">
+      <tr>
+        <th scope="col">Currency</th>
+        <th scope="col">Amount in Account</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for balance in my_balances %}
+        <tr>
+          <td>{{ balance['asset'] }}</td>
+          <td>{{ balance['free'] }}</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</form>
 </div>
 
-
-
+<script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
+<script type="text/javascript" src="chart.js"></script>
 {% endblock %}

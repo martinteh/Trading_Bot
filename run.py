@@ -1,4 +1,4 @@
-from trading_bot.__init__ import app
+from trading_bot import app
 
 if __name__== '__main__':
     app.run(debug=True)
