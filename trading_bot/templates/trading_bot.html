@@ -5,11 +5,18 @@
 <div id="tvchart"></div>
 
 <div class="content-section">
-  <script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
+  
 
     <h1 style="text-align: center">BTCUSD Bot Tracker and Dashboard</h1> 
     
-    <a href="/startbot">Start Bot</a> <a href="/stopbot">Stop Bot</a>
+    <a href="/startbot">Start Bot</a> <a href="/stopbot">Stop Bot</a> <a href="/botdashboard">Click Here After Starting Bot</a>
+    {% if rsi|length < 1 %}
+    
+    {% else %}
+    
+    <p> RSIs calculated are {% for value in rsi %} {{ value }} {% endfor %} </p>
+    
+    {% endif %}
 
     <div id="chart"></div>
 
@@ -49,6 +56,7 @@
   <a href="/sell">Sell</a>
   <a href="/delete">Delete</a>
  
+  <p> Average price for BTC in USD is {{ unitPrice }}.</p>
 
   <table class="table">
     <thead class="thead-dark">
@@ -66,9 +74,8 @@
       {% endfor %}
     </tbody>
   </table>
-</form>
 </div>
 
-<script src="https://unpkg.com/lightweight-charts/dist/lightweight-charts.standalone.production.js"></script>
-<script type="text/javascript" src="chart.js"></script>
+<!-- <script src="{{ url_for('static', filename='chart.js') }}"></script> -->
+<script src="{{ url_for('static', filename='chart.js') }}"></script>
 {% endblock %}

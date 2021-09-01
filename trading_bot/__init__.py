@@ -12,7 +12,81 @@ app.config['SECRET_KEY'] = '4e22253d8b1f38c1ffb9f44535d4bea1'
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///site.db'
 db = SQLAlchemy(app)
 
-ws = websocket.WebSocketApp(b.SOCKET, on_open=b.on_open, on_close=b.on_close, on_message=b.on_message)
+
+closes = []
+in_position = False
+order_successful = False
+rsi = []
+
+def order(side, quantity, symbol, order_type=ORDER_TYPE_MARKET):
+    global order_successful
+    try:
+        print("sending order")
+        orderInfo = b.client.create_order(symbol=symbol, side=side, type=order_type, quantity=quantity)
+        print(order)
+    except Exception as e:
+        print("an exception occured - {}".format(e))
+        return False
+    
+    order_successful = True
+    return orderInfo
+
+def on_open(ws):
+    print("opened connection")
+
+def on_close(ws):
+    print("close connection")
+
+def on_message(ws, message): # automated bot function that runs indefinitely
+    global closes
+    global in_position
+    global order_successful
+    global rsi
+    print("received message")
+    json_message = json.loads(message)
+    pprint.pprint(json_message)
+
+    candle = json_message['k']
+
+    is_candle_closed = candle['x']
+    close = candle['c']
+    if is_candle_closed:
+        print("candle close at {}".format(close))
+        closes.append(float(close))
+        print("closes")
+        print(closes)
+
+        if len(closes) > b.RSI_PERIOD:
+            np_closes=np.array(closes)
+            rsi = b.rsiFunc(np_closes, b.RSI_PERIOD)
+            print("all rsis calc'd so far")
+            print(rsi)
+            last_rsi = rsi[-1]
+            print("the current rsi is {}".format(last_rsi))
+
+            if last_rsi > b.RSI_OVERBOUGHT:
+                if in_position:
+                    print("overbought, sell!")
+                    buy()
+                    if order_successful:
+                        in_position = False
+                        order_successful = False
+                    #put binance sell logic here
+                else:
+                    print("it is overbought but we don't own any so there's nothing to do.")
+            
+            if last_rsi < b.RSI_OVERSOLD:
+                if in_position:
+                    print("it is oversold, but you already own it, so there's nothing to do")
+                else:
+                    print("buy, buy, buy")
+                    #put binance buy logic here
+                    buy()
+                    if order_successful:
+                        in_position = True
+                        order_successful = False
+
+ws = websocket.WebSocketApp(b.SOCKET, on_open=on_open, on_close=on_close, on_message=on_message)
 
 
 class User(db.Model):
@@ -51,10 +125,15 @@ buy = True
 @app.route('/botdashboard', methods=['GET', 'POST'])
 def bot():
     global buy
+    global rsi
 
     info = b.client.get_account()
     balances = info['balances']
     #print(balances)
+
+    BTCprice = b.client.get_avg_price(symbol="BTCUSDT")
+    BTCunit = BTCprice['price']
+
 
     if request.method == "POST":
         amount = "£300"
@@ -68,11 +147,11 @@ def bot():
             return 'There was an issue with the sale.'
     else:
         form = Tracker.query.order_by(Tracker.dateTime).all()
-        return render_template('trading_bot.html', form=form, my_balances=balances)
+        return render_template('trading_bot.html', form=form, my_balances=balances, unitPrice=BTCunit, rsi=rsi)
 
 @app.route('/buy')
 def buy():
-    orderBuy = b.order(SIDE_BUY, b.TRADE_QUANTITY, b.TRADE_SYMBOL, order_type=ORDER_TYPE_MARKET)
+    orderBuy = order(SIDE_BUY, b.TRADE_QUANTITY, b.TRADE_SYMBOL, order_type=ORDER_TYPE_MARKET)
     amountBought = orderBuy['executedQty']
     fills = orderBuy['fills']
     unitCost = fills[0]['price']
@@ -88,7 +167,7 @@ def buy():
 
 @app.route('/sell')
 def sell():
-    orderBuy = b.order(SIDE_SELL, b.TRADE_QUANTITY, b.TRADE_SYMBOL, order_type=ORDER_TYPE_MARKET)
+    orderBuy = order(SIDE_SELL, b.TRADE_QUANTITY, b.TRADE_SYMBOL, order_type=ORDER_TYPE_MARKET)
     amountBought = orderBuy['executedQty']
     fills = orderBuy['fills']
     unitCost = fills[0]['price']
@@ -109,6 +188,7 @@ def startBot():
         flash(f'Bot has been started!!', 'success')
         redirect(url_for('bot'))
         ws.run_forever()
+
     except:
         return 'There was a problem starting the bot'
 
